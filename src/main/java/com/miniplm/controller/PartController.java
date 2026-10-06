@@ -2,6 +2,7 @@ package com.miniplm.controller;
 
 import com.miniplm.dto.PartRequest;
 import com.miniplm.dto.PartResponse;
+import com.miniplm.dto.TransitionRequest;
 import com.miniplm.dto.VersionResponse;
 import com.miniplm.service.PartService;
 import jakarta.validation.Valid;
@@ -48,5 +49,18 @@ public class PartController {
     @GetMapping("/{id}/versions")
     public List<VersionResponse> versions(@PathVariable Long id) {
         return partService.versions(id);
+    }
+
+    @PostMapping("/{id}/versions/{versionId}/transition")
+    public VersionResponse transition(@PathVariable Long id,
+                                      @PathVariable Long versionId,
+                                      @Valid @RequestBody TransitionRequest request) {
+        return partService.transition(id, versionId, request);
+    }
+
+    @PostMapping("/{id}/revise")
+    @ResponseStatus(HttpStatus.CREATED)
+    public VersionResponse revise(@PathVariable Long id) {
+        return partService.revise(id);
     }
 }
