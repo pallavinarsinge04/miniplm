@@ -25,6 +25,7 @@ public class PartService {
 
     private final PartRepository partRepository;
     private final PartVersionRepository versionRepository;
+    private final AuditService auditService;
 
     @Transactional
     public PartResponse create(PartRequest req) {
@@ -43,6 +44,8 @@ public class PartService {
         first.setPart(saved);
         versionRepository.save(first);
 
+        auditService.log("PART_CREATED", "Part", saved.getId(),
+                saved.getPartNumber() + " - " + saved.getName());
         return toResponse(saved);
     }
 
@@ -86,6 +89,7 @@ public class PartService {
             throw new BusinessRuleException("A part with a released revision cannot be deleted.");
         }
         partRepository.delete(part);
+        auditService.log("PART_DELETED", "Part", id, part.getPartNumber());
     }
 
     @Transactional(readOnly = true)
@@ -96,10 +100,13 @@ public class PartService {
                 .toList();
     }
 
-    /** Move a revision through its lifecycle: IN_WORK -> UNDER_REVIEW -> APPROVED -> RELEASED. */
+    /**
+     * Release an APPROVED revision. The other states are reached through the workflow:
+     * IN_WORK -> UNDER_REVIEW via /submit, UNDER_REVIEW -> APPROVED via reviewer decisions.
+     */
     @Transactional
     public VersionResponse transition(Long partId, Long versionId, TransitionRequest req) {
-        find(partId);
+        Part part = find(partId);
         PartVersion version = versionRepository.findById(versionId)
                 .filter(v -> v.getPart().getId().equals(partId))
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -108,12 +115,20 @@ public class PartService {
         LifecycleState current = version.getState();
         LifecycleState target = req.targetState();
 
+        if (target != LifecycleState.RELEASED) {
+            throw new BusinessRuleException("Use /submit to send a revision for review and the reviewer "
+                    + "decisions to approve it. Only APPROVED -> RELEASED is done here.");
+        }
         if (!current.canMoveTo(target)) {
             throw new BusinessRuleException("Cannot move revision " + version.getRevision()
                     + " from " + current + " to " + target + ".");
         }
         version.setState(target);
-        return toVersionResponse(versionRepository.save(version));
+        VersionResponse result = toVersionResponse(versionRepository.save(version));
+
+        auditService.log("REVISION_RELEASED", "PartVersion", versionId,
+                part.getPartNumber() + " rev " + version.getRevision() + " released");
+        return result;
     }
 
     /** Create the next revision (A -> B) from the latest RELEASED revision. */
@@ -141,7 +156,11 @@ public class PartService {
             copy.setUnit(old.getUnit());
             next.getChildren().add(copy);
         }
-        return toVersionResponse(versionRepository.save(next));
+        PartVersion saved = versionRepository.save(next);
+
+        auditService.log("REVISION_CREATED", "PartVersion", saved.getId(),
+                part.getPartNumber() + " revised " + latest.getRevision() + " -> " + saved.getRevision());
+        return toVersionResponse(saved);
     }
 
     // ---------- helpers ----------

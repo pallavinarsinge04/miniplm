@@ -13,9 +13,12 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String action;      // e.g. SUBMITTED, APPROVED, REVISED
-    private String entityType;  // e.g. PartVersion
+    private String action;      // e.g. REVISION_SUBMITTED, APPROVAL_REJECTED
+    private String entityType;  // e.g. Part, PartVersion
     private Long entityId;
     private String performedBy;
     private LocalDateTime performedAt = LocalDateTime.now();
+
+    @Column(length = 500)
+    private String details;
 }
