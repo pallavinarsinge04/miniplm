@@ -6,8 +6,6 @@ import com.miniplm.repository.AuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 
@@ -16,11 +14,12 @@ import java.util.List;
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
+    private final CurrentUserService currentUserService;
 
-    /** Log an action performed by the current user. */
+    /** Log an action performed by the logged-in user. */
     @Transactional
     public void log(String action, String entityType, Long entityId, String details) {
-        log(action, entityType, entityId, currentUser(), details);
+        log(action, entityType, entityId, currentUserService.email(), details);
     }
 
     @Transactional
@@ -43,19 +42,5 @@ public class AuditService {
                 .map(a -> new AuditResponse(a.getId(), a.getAction(), a.getEntityType(), a.getEntityId(),
                         a.getPerformedBy(), a.getPerformedAt(), a.getDetails()))
                 .toList();
-    }
-
-    /**
-     * TEMPORARY: reads the user from an X-User-Email header so you can test in Postman.
-     * In Step 6 this is replaced by the logged-in user from the JWT.
-     */
-    public String currentUser() {
-        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
-            String header = attrs.getRequest().getHeader("X-User-Email");
-            if (header != null && !header.isBlank()) {
-                return header.trim();
-            }
-        }
-        return "anonymous";
     }
 }

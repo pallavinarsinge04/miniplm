@@ -40,6 +40,7 @@ public class WorkflowService {
     private final UserRepository userRepository;
     private final ApprovalTaskRepository taskRepository;
     private final AuditService auditService;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public List<TaskResponse> submit(Long partId, Long versionId, SubmitRequest req) {
@@ -89,7 +90,7 @@ public class WorkflowService {
         ApprovalTask task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + taskId));
         PartVersion version = task.getPartVersion();
-        String reviewerEmail = req.reviewerEmail().trim().toLowerCase();
+        String reviewerEmail = currentUserService.email();   // the logged-in reviewer
 
         if (!task.getApprover().getEmail().equalsIgnoreCase(reviewerEmail)) {
             throw new BusinessRuleException("This task is assigned to another reviewer.");
@@ -140,9 +141,9 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> inbox(String reviewerEmail) {
+    public List<TaskResponse> inbox() {
         return taskRepository
-                .findByApproverEmailAndStatusOrderByIdAsc(reviewerEmail.trim().toLowerCase(), ApprovalStatus.PENDING)
+                .findByApproverEmailAndStatusOrderByIdAsc(currentUserService.email(), ApprovalStatus.PENDING)
                 .stream().map(this::toResponse).toList();
     }
 

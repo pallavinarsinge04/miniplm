@@ -26,6 +26,7 @@ public class PartService {
     private final PartRepository partRepository;
     private final PartVersionRepository versionRepository;
     private final AuditService auditService;
+    private final CurrentUserService currentUserService;
 
     @Transactional
     public PartResponse create(PartRequest req) {
@@ -42,6 +43,7 @@ public class PartService {
         // Every new part starts at revision A, state IN_WORK
         PartVersion first = new PartVersion();
         first.setPart(saved);
+        first.setCreatedBy(currentUserService.user().orElse(null));
         versionRepository.save(first);
 
         auditService.log("PART_CREATED", "Part", saved.getId(),
@@ -145,6 +147,7 @@ public class PartService {
         PartVersion next = new PartVersion();
         next.setPart(part);
         next.setRevision(nextRevision(latest.getRevision()));
+        next.setCreatedBy(currentUserService.user().orElse(null));
         // state defaults to IN_WORK
 
         // Like Windchill, the new revision starts with the same BOM

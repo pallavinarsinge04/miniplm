@@ -17,7 +17,7 @@ public class WorkflowController {
 
     private final WorkflowService workflowService;
 
-    /** Send a revision for review. */
+    /** Send a revision for review (DESIGNER or ADMIN). */
     @PostMapping("/parts/{partId}/versions/{versionId}/submit")
     public List<TaskResponse> submit(@PathVariable Long partId, @PathVariable Long versionId,
                                      @Valid @RequestBody SubmitRequest request) {
@@ -30,13 +30,13 @@ public class WorkflowController {
         return workflowService.tasksForVersion(partId, versionId);
     }
 
-    /** A reviewer's open tasks (the approval inbox). */
+    /** The logged-in reviewer's open tasks (the approval inbox). */
     @GetMapping("/tasks")
-    public List<TaskResponse> inbox(@RequestParam String reviewerEmail) {
-        return workflowService.inbox(reviewerEmail);
+    public List<TaskResponse> inbox() {
+        return workflowService.inbox();
     }
 
-    /** Approve or reject a task. */
+    /** Approve or reject one of your own tasks (REVIEWER). */
     @PostMapping("/tasks/{taskId}/decision")
     public TaskResponse decide(@PathVariable Long taskId, @Valid @RequestBody DecisionRequest request) {
         return workflowService.decide(taskId, request);
